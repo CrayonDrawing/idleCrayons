@@ -1,6 +1,9 @@
 import pygame
 import sys
-import random
+
+from game_objects import Unit, GameState, Item
+from constants import TASKS_TO_TICKS, LOOT_TABLES
+from utils import xp_needed
 
 pygame.init()
 
@@ -17,37 +20,10 @@ font = pygame.font.SysFont(None, 24)
 TICK_EVENT = pygame.USEREVENT + 1
 pygame.time.set_timer(TICK_EVENT, 1000)
 
-TASKS_TO_TICKS = {
-    "PLUNDERING": 1,
-    "MINING": 2,
-    "LEADING PARTY": 1,
-    "HUNTING": 4
-}
-
-LOOT_TABLES = {
-    "goblin": [
-        ("gold", 70),
-        ("rusty_dagger", 30),
-    ],
-
-    "skeleton": [
-        ("bone", 60),
-        ("gold", 30),
-        ("ancient_coin", 10),
-    ],
-
-    "dragon": [
-        ("gold", 40),
-        ("gem", 40),
-        ("dragon_scale", 20),
-    ]
-}
 
 # --------------------
 # ITEM ICONS
 # --------------------
-
-
 
 ITEM_ICONS = {
     "rusty_dagger": pygame.image.load("dagger.png").convert_alpha(),
@@ -55,125 +31,9 @@ ITEM_ICONS = {
     "ancient_coin": pygame.image.load("coin.png").convert_alpha(),
     "dragon_scale": pygame.image.load("scale.png").convert_alpha(),
 }
-# --------------------
-# UTILS
-# --------------------
-def xp_needed(level):
-    return level * 10
-
-def roll_loot(enemy):
-    table = LOOT_TABLES[enemy]
-    if not table:
-        return None
-
-    total = sum(weight for item, weight in table)
-    roll = random.randint(1, total)
-
-    for item, weight in table:
-        roll -= weight
-        if roll <= 0:
-            return item
-
-def add_to_inventory(item_name):
-    icon = ITEM_ICONS.get(item_name)
-
-    # stack items
-    for slot in game_state.inventory:
-        if slot is not None and slot.name == item_name:
-            slot.count += 1
-            return
-
-    # empty slot
-    for i in range(len(game_state.inventory)):
-        if game_state.inventory[i] is None:
-            game_state.inventory[i] = Item(item_name, icon)
-            return
-
-# --------------------
-# GAME OBJECTS
-# --------------------
-class Unit:
-    def __init__(self):
-        self.task = "NONE"
-        self.task_timer = 0
-        self.level = 1
-        self.xp = 0
-
-    def complete_task(self, game_state):
-        if self.task == "PLUNDERING":
-            game_state.gold += 5
-
-        elif self.task == "MINING":
-            game_state.ore += 2
-
-        elif self.task == "LEADING PARTY":
-            self.xp += 1
-
-            loot = random.choice(["gold", "ore", "gems"])
-            if loot == "gold":
-                game_state.gold += 7
-            elif loot == "ore":
-                game_state.ore += 1
-            elif loot == "gems":
-                game_state.gems += 1
-
-            if self.xp >= xp_needed(self.level):
-                self.xp -= xp_needed(self.level)
-                self.level += 1
-        elif self.task == "HUNTING":
-            enemy = game_state.selected_enemy
-
-            if enemy is None:
-                return
-
-            self.xp += 1
-
-            loot = roll_loot(enemy)
-
-            # safety check
-            if loot is None:
-                return
-
-            if loot == "gold":
-                game_state.gold += 7
-            else:
-                add_to_inventory(loot)
-
-    def process_tick(self, game_state):
-        if self.task == "NONE":
-            return
-
-        self.task_timer += 1
-
-        if self.task_timer >= TASKS_TO_TICKS[self.task]:
-            self.task_timer = 0
-            self.complete_task(game_state)
-
-class Item:
-    def __init__(self, name, icon=None, rarity="common"):
-        self.name = name
-        self.icon = icon
-        self.rarity = rarity
-        self.count = 1
 
 
-class GameState:
-    def __init__(self):
-        self.screen = "GAME"
-        self.gold = 50
-        self.ore = 0
-        self.gems = 0
-        self.units = [Unit()]
-        self.selected_unit_idx = 0
-        self.inventory_size = 16  # 4x4 grid
-        self.inventory = [None] * self.inventory_size
 
-        self.enemies = ["goblin", "skeleton", "dragon"]
-        self.selected_enemy = None
-
-    def selected_unit(self):
-        return self.units[self.selected_unit_idx]
-    
 game_state = GameState()
 
 # --------------------
@@ -365,7 +225,7 @@ def draw_inventory():
         pygame.draw.rect(screen, (120, 120, 120), (x, y, size, size), 2)
 
         if slot:
-            icon = slot.icon
+            icon = ITEM_ICONS[slot.name]
 
             if icon:
                 icon_scaled = pygame.transform.scale(icon, (40, 40))
