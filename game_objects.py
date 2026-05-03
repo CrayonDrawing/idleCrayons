@@ -1,7 +1,7 @@
 import random
 import pygame
 
-from constants import TASKS_TO_TICKS
+from constants import STOCKS, TASKS_TO_TICKS
 from utils import xp_needed, roll_loot
 
 
@@ -78,6 +78,7 @@ class GameState:
         self.gold = 50
         self.ore = 0
         self.gems = 0
+        self.stocks ={name: 0 for name in STOCKS}
         self.units = [Unit()]
         self.selected_unit_idx = 0
         self.inventory_size = 16  # 4x4 grid

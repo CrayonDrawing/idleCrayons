@@ -1,3 +1,4 @@
+import random
 
 TASKS_TO_TICKS = {
     "PLUNDERING": 1,
@@ -25,3 +26,23 @@ LOOT_TABLES = {
     ]
 }
 
+STOCKS = {
+    "HolardCoin": {
+        "price": 190,
+        "volatility": 170,
+        "ticks": 0,
+        "ticks_to_update": 1
+    },
+    "CDRW": {
+        "price": 520,
+        "volatility": 75,
+        "ticks": 0,
+        "ticks_to_update": 5
+    },
+    "AppleBees": {
+        "price": 125,
+        "volatility": 11,
+        "ticks": 0,
+        "ticks_to_update": 5
+        }
+}

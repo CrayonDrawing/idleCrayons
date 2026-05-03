@@ -1,9 +1,11 @@
 import pygame
 import sys
+import random
 
 from game_objects import Unit, GameState, Item
 from constants import TASKS_TO_TICKS, LOOT_TABLES
 from utils import xp_needed
+from constants import STOCKS
 
 pygame.init()
 
@@ -35,6 +37,8 @@ ITEM_ICONS = {
 
 
 game_state = GameState()
+
+game_state.stocks = {name: 0 for name in STOCKS}
 
 # --------------------
 # BUTTON SYSTEM
@@ -112,6 +116,14 @@ def close_inventory():
     game_state.screen = "GAME"
     setup_game_buttons()
 
+def open_stock_screen():
+    game_state.screen = "STOCKS"
+    setup_stock_buttons()
+
+def close_stock_screen():
+    game_state.screen = "GAME"
+    setup_game_buttons()
+
 def open_enemy_screen():
     game_state.screen = "ENEMIES"
     setup_enemy_buttons()
@@ -130,12 +142,36 @@ def select_enemy(enemy):
     u.task = "HUNTING"
     u.task_timer = 0
 
+def update_stock_prices():
+    for stock_name in STOCKS:
+        stock = STOCKS[stock_name]
+        change = random.randint(-stock["volatility"], stock["volatility"])
+        stock["price"] += change
+
+        if stock["price"] < 1:
+            stock["price"] = 1
+
+def buy_stock(stock_name):
+    price = STOCKS[stock_name]["price"]
+
+    if game_state.gold >= price:
+        game_state.gold -= price
+        game_state.stocks[stock_name] += 1
+
+def sell_stock(stock_name):
+    price = STOCKS[stock_name]["price"]
+
+    if game_state.stocks[stock_name] > 0:
+        game_state.stocks[stock_name] -= 1
+        game_state.gold += price
+
 # --------------------
 # BUTTON SETUP
 # --------------------
 def setup_game_buttons():
     buttons.clear()
 
+    add_button(20, 220, 180, 50, "STOCKS", open_stock_screen)
     add_button(20, 280, 180, 50, "PLUNDER", assign_plunder)
     add_button(20, 340, 180, 50, "MINING", assign_mining)
     add_button(20, 400, 180, 50, "PARTY", assign_party)
@@ -155,6 +191,48 @@ def setup_inventory_buttons():
     buttons.clear()
     add_button(400, 520, 180, 50, "BACK", close_inventory)
 
+def setup_stock_buttons():
+    buttons.clear()
+
+    add_button(300, 230, 140, 50,
+        "Buy HolardCoin",
+        lambda: buy_stock("HolardCoin"))
+
+    add_button(570, 230, 140, 50,
+        "Sell HolardCoin",
+        lambda: sell_stock("HolardCoin"))
+
+    add_button(300, 310, 140, 50,
+        "Buy CDRW",
+        lambda: buy_stock("CDRW"))
+
+    add_button(570, 310, 140, 50,
+        "Sell CDRW",
+        lambda: sell_stock("CDRW"))
+
+    add_button(300, 390, 140, 50,
+        "Buy AppleBees",
+        lambda: buy_stock("AppleBees"))
+
+    add_button(570, 390, 140, 50,
+        "Sell AppleBees",
+        lambda: sell_stock("AppleBees"))
+
+    add_button(410, 520, 180, 50, "BACK", close_stock_screen)
+
+def update_stocks_tick():
+    for stock in STOCKS.values():
+        stock["ticks"] += 1
+
+        if stock["ticks"] >= stock["ticks_to_update"]:
+            change = random.randint(-stock["volatility"], stock["volatility"])
+            stock["price"] += change
+
+            if stock["price"] < 1:
+                stock["price"] = 1
+
+            stock["ticks"] = 0
+    
 def setup_enemy_buttons():
     buttons.clear()
 
@@ -203,6 +281,37 @@ def draw_units():
 def draw_shop():
     screen.blit(font.render("SHOP", True, (255,255,255)), (450, 100))
 
+def draw_stocks():
+    screen.blit(font.render("STOCKS", True, (255,255,255)), (450, 100))
+
+    gold_text = font.render(f"Gold: {game_state.gold}", True, (255, 255, 0))
+    gold_x = WIDTH - gold_text.get_width() - 20  # 20px padding
+    screen.blit(gold_text, (gold_x, 20))
+
+    y = 150
+    for stock, count in game_state.stocks.items():
+        text = f"{stock}: {STOCKS[stock]['price']}g (You own: {count})"
+        screen.blit(font.render(text, True, (255,255,255)), (400, y))
+        y += 20
+
+def draw_equipment_slot(name, x, y):
+    pygame.draw.rect(screen, (80, 80, 80), (x, y, 50, 50))
+
+def draw_equipment_panel():
+    pygame.draw.rect(screen, (40, 40, 40), (680, 250, 250, 350))
+
+    draw_equipment_slot("Hat", 780, 270)
+    draw_equipment_slot("Cape", 710, 330)
+    draw_equipment_slot("Necklace", 780, 330)
+    draw_equipment_slot("Relic", 850, 330)
+    draw_equipment_slot("Weapon", 710, 390)
+    draw_equipment_slot("Chest", 780, 390)
+    draw_equipment_slot("Offhand", 850, 390)
+    draw_equipment_slot("Legs", 780, 450)
+    draw_equipment_slot("Gloves", 710, 510)
+    draw_equipment_slot("Boots", 780, 510)
+    draw_equipment_slot("Ring", 850, 510)
+
 def draw_inventory():
     screen.fill((15, 15, 15))
 
@@ -248,6 +357,8 @@ def draw_enemies():
         screen.blit(font.render(enemy, True, color), (420, y))
         y += 60
 
+
+
 # --------------------
 # INPUT
 # --------------------
@@ -277,17 +388,23 @@ while running:
             for u in game_state.units:
                 u.process_tick(game_state)
 
+            update_stocks_tick()
+
     screen.fill((0, 0, 0))
 
     if game_state.screen == "GAME":
         draw_resources()
         draw_units()
+        draw_equipment_panel()
 
     elif game_state.screen == "SHOP":
         draw_shop()
 
     elif game_state.screen == "INVENTORY":
         draw_inventory()
+
+    elif game_state.screen == "STOCKS":
+        draw_stocks()
 
     elif game_state.screen == "ENEMIES":
         draw_enemies()
